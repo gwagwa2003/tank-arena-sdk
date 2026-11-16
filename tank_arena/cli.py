@@ -53,7 +53,7 @@ def main(argv=None):
     p.add_argument("--loadout-a", default="gunner:shield", help=LOADOUT_HELP); p.add_argument("--loadout-b", default="gunner:shield")
     p.add_argument("--map", choices=["fort", "city"]); p.add_argument("--html", help="save the last game as an HTML replay")
     p = sub.add_parser("check", help="run the server's checks locally"); p.add_argument("model")
-    p.add_argument("--limit", type=float, default=None, help="ms per step (default: the site's limit, or 50)")
+    p.add_argument("--limit", type=float, default=None, help="ms per step (default: the site's limit, or 20)")
     p = sub.add_parser("upload", help="upload a model.pt"); p.add_argument("model"); p.add_argument("--label", default="")
     p.add_argument("--keep-active", action="store_true", help="upload without making it your active model")
     p = sub.add_parser("queue", help="start a ranked game"); p.add_argument("--wait", action="store_true")
@@ -80,14 +80,15 @@ def main(argv=None):
             print("replay:", replay_html(rep, args.html))
     elif args.cmd == "check":
         from .check import check_model
-        limit = args.limit
-        if limit is None:
-            try:
-                from .client import ArenaClient
-                limit = float(ArenaClient(args.server, timeout=10).config()["speed_limit_ms"])
-            except Exception:
-                limit = 50.0
-        res = check_model(args.model, limit)
+        limit, max_mb = args.limit, 10.0
+        try:                                                     # the server's current limits
+            from .client import ArenaClient
+            cfg = ArenaClient(args.server, timeout=10).config()
+            max_mb = float(cfg.get("max_model_mb", max_mb))
+            if limit is None: limit = float(cfg["speed_limit_ms"])
+        except Exception:
+            if limit is None: limit = 20.0
+        res = check_model(args.model, limit, max_mb=max_mb)
         print(("✓ " if res["ok"] else "✗ ") + res["message"]); print(json.dumps(res["summary"], ensure_ascii=False, indent=1))
         sys.exit(0 if res["ok"] else 1)
     elif args.cmd == "upload":

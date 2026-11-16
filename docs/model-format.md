@@ -43,9 +43,9 @@ logits, h, c = model(x, h, c)
 
 上傳後伺服器馬上檢查，沒通過的檔案不會保留（原因只顯示一次）：
 
-1. 檔案不超過 **20 MB**，是 TorchScript（zip 格式），`config.json` 符合上面的規格。
+1. 檔案不超過 **10 MB**（目前的上限看 `GET /api/config` 的 `max_model_mb`），是 TorchScript（zip 格式），`config.json` 符合上面的規格。
 2. `forward` 回傳 `(logits, h, c)`，`logits` 形狀 `(1, 13)` 且是有限數字。
-3. **推論速度**：在伺服器上以單執行緒量 400 步，p95 不能超過上限（目前的上限看 `GET /api/config` 的 `speed_limit_ms`）。
+3. **推論速度**：在伺服器上以單執行緒量 400 步，p95 不能超過上限（目前 20 ms，以 `GET /api/config` 的 `speed_limit_ms` 為準）。
    伺服器的 CPU 可能比你的電腦慢不少，本機量的時間請留餘裕。
 4. 用你的配裝跟規則 bot 試打一局，不能有任何一步出錯。
 

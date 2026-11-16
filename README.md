@@ -77,8 +77,8 @@ python -m tank_arena --user 你的帳號 queue --wait        # 打的時候可�
 ## 給模型的小提醒
 
 - **配裝要一致**：網站上選的機體和模組要跟訓練時一樣，觀測裡有些數字跟配裝有關。
-- **速度有上限**：伺服器用單執行緒量推論時間，上限看 `GET /api/config` 的 `speed_limit_ms`。伺服器的 CPU 可能比你的電腦慢，請留餘裕。
-- **檔案上限 20 MB**；伺服器只載入 TorchScript，不會執行你的 Python 程式。
+- **速度有上限**：伺服器用單執行緒量推論時間，上限看 `GET /api/config` 的 `speed_limit_ms`（目前每步 p95 20 ms）。伺服器的 CPU 可能比你的電腦慢，請留餘裕。
+- **檔案上限 10 MB**（以 `GET /api/config` 的 `max_model_mb` 為準）；伺服器只載入 TorchScript，不會執行你的 Python 程式。
 - 規則 bot 只能在本機用，天梯上只有模型能打。
 
 ## 測試

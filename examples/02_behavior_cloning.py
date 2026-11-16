@@ -136,7 +136,7 @@ def main():
             episodes += collect(args.games // 2, loadout, rng, student=ModelPolicy(args.out), beta=beta)
 
     print(f"done in {time.time() - t0:.0f} s -> {args.out}")
-    res = check_model(args.out, speed_limit_ms=50)
+    res = check_model(args.out, speed_limit_ms=20)
     print("server checks:", res["message"], res["summary"].get("ms_p95"), "ms/step")
     evaluate(args.out, loadout, 10, rng)
 

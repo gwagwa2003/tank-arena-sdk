@@ -12,17 +12,17 @@ from .bots import ChaserBot
 from .engine import play
 from .observation import OBS_SIZE
 
-MAX_MB = 20
+MAX_MB = 10      # the server's current limit (GET /api/config -> max_model_mb)
 
 
-def check_model(path, speed_limit_ms=50.0, loadout=("standard", "shield"), timed_steps=400):
+def check_model(path, speed_limit_ms=20.0, loadout=("standard", "shield"), timed_steps=400, max_mb=MAX_MB):
     """dict(ok, message, summary). speed_limit_ms is the server's limit (GET /api/config -> speed_limit_ms), measured on
     the server's CPU, which may be slower than yours: leave some margin."""
     import torch
     torch.set_num_threads(1)                              # the server runs every model on one thread
     size = __import__("os").path.getsize(path)
-    if size > MAX_MB * 1024 * 1024:
-        return dict(ok=False, message=f"file is larger than {MAX_MB} MB", summary={})
+    if size > max_mb * 1024 * 1024:
+        return dict(ok=False, message=f"file is larger than {max_mb:g} MB", summary={})
     if not zipfile.is_zipfile(path):
         return dict(ok=False, message="not a TorchScript file (model.pt is a zip); export it with tank_arena.export", summary={})
     try:
