@@ -11,7 +11,7 @@ import math
 import random
 
 from .geometry import wrap
-from .rules import ARENA, CHASSIS, MAPS, MODULES, STEPS, TR, TROT, hits_rect
+from .rules import ARENA, BLINK, CHASSIS, MAPS, MODULES, STEPS, TR, TROT, hits_rect
 
 IDLE = [2, 1, 1, 0, 0]          # stop, keep heading, keep turret, hold fire, no skill
 ACTION_SIZES = (3, 3, 3, 2, 2)  # move, body, turret, fire, skill
@@ -38,7 +38,7 @@ def duel_outcome(rows):
 class Game:
     """One game, played step by step.
 
-    game = Game(seed, [("gunner", "shield"), ("scout", "boost")])
+    game = Game(seed, [("gunner", "shield"), ("scout", "stealth")])
     while not game.over:
         game.step([policy_i.act(game.state(i)) for i in ...])   # None for a tank that is already dead
     rows = game.results()
@@ -119,9 +119,14 @@ class Game:
             if m in MODULES and act[4] == 1 and a["skill_cd"] <= 0:
                 a["skill_t"], a["skill_cd"] = MODULES[m]; just = True; a["skills"] += 1
                 if m == "shield": a["shield"] = 12
-            boost = m == "boost" and a["skill_t"] > 0
+                if m == "stealth":                            # blink: 4 px at a time, stop in front of walls and tanks
+                    d = a["heading"] + (math.pi if act[0] == 1 else 0)
+                    for _ in range(BLINK // 4):
+                        tx, ty = a["x"] + math.cos(d) * 4, a["y"] + math.sin(d) * 4
+                        if not self._free(tx, ty, a["id"]): break
+                        a["x"], a["y"] = tx, ty
             a["heading"] = wrap(a["heading"] + (act[1] - 1) * rot)
-            v = spd * (2 if boost else 1) * (1 if act[0] == 0 else -0.6 if act[0] == 1 else 0)
+            v = spd * (1 if act[0] == 0 else -0.6 if act[0] == 1 else 0)
             ox, oy = a["x"], a["y"]; nx = ox + math.cos(a["heading"]) * v; ny = oy + math.sin(a["heading"]) * v
             if v != 0:
                 if self._free(nx, ny, a["id"]): a["x"], a["y"] = nx, ny
@@ -129,7 +134,7 @@ class Game:
                 elif self._free(ox, ny, a["id"]): a["y"] = ny
             a["vx"], a["vy"] = a["x"] - ox, a["y"] - oy
             a["turret"] = wrap(a["turret"] + (act[2] - 1) * TROT); a["cooldown"] = max(0, a["cooldown"] - 1)
-            if act[3] == 1 and not a["cooldown"] and not boost and not (just and m == "stealth"):
+            if act[3] == 1 and not a["cooldown"] and not (just and m == "stealth"):
                 self._uid += 1
                 self.bullets.append(dict(uid=self._uid, x=a["x"] + math.cos(a["turret"]) * 24, y=a["y"] + math.sin(a["turret"]) * 24,
                                          vx=math.cos(a["turret"]) * bspd, vy=math.sin(a["turret"]) * bspd, owner=a["id"], life=blife))

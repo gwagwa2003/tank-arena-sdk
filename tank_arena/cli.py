@@ -14,7 +14,7 @@ import os
 import random
 import sys
 
-LOADOUT_HELP = "chassis:module, e.g. gunner:shield (chassis: standard heavy scout gunner lancer; module: stealth shield boost antizone radar)"
+LOADOUT_HELP = "chassis:module, e.g. gunner:shield (chassis: standard heavy scout gunner lancer; module: stealth shield antizone radar xray)"
 
 
 def _policy(spec, seed):

@@ -27,7 +27,7 @@ from tank_arena.engine import ACTION_SIZES, play
 from tank_arena.export import export_model
 
 CHASSIS = ["standard", "heavy", "scout", "gunner", "lancer"]
-MODULES = ["stealth", "shield", "boost", "antizone", "radar"]
+MODULES = ["stealth", "shield", "antizone", "radar", "xray"]
 
 
 def opponents(rng):

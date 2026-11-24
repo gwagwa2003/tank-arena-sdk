@@ -37,7 +37,7 @@ class TurretBot:
 
     def act(self, state):
         me = state["self"]
-        aim, fire = _aim(me, visible_enemies(state))
+        aim, fire = _aim(me, visible_enemies(state), state["walls"])
         return [STOP, KEEP, aim, fire, 0]
 
 
@@ -63,7 +63,7 @@ class ChaserBot:
         me, zone, t = state["self"], state["zone"], state["t"]
         seen = visible_enemies(state)
         e = seen[0] if seen else None
-        aim, fire = _aim(me, seen)
+        aim, fire = _aim(me, seen, state["walls"])
         hurt = me["hp_frac"] < self.prev_hp; self.prev_hp = me["hp_frac"]
 
         zone_d = math.hypot(zone["x"] - me["x"], zone["y"] - me["y"])
@@ -99,14 +99,14 @@ class ChaserBot:
         if m in MODULES and me["skill_ready"]:
             if m == "shield": skill = int(_bullet_coming(state, 70))
             elif m == "stealth": skill = int(hurt and me["hp_frac"] < 0.6)
-            elif m == "boost": skill = int(zone_d > zone["r"] - 20 and facing)
+            elif m == "xray": skill = int(e is None and t > 60)
         if m == "stealth" and me["skill_active"]: fire = 0   # firing ends stealth
         return [move, body, aim, fire, skill]
 
 
-def _aim(me, seen):
+def _aim(me, seen, walls):
     """(turret action, fire) toward the nearest visible enemy, leading the target; with nobody seen, keep the turret
-    pointing where the body goes."""
+    pointing where the body goes. Holds fire while a wall is in the way (an x-ray can see through walls, bullets can't)."""
     if not seen:
         return turn_toward(me["turret"], me["heading"], TROT), 0
     e = seen[0]
@@ -116,7 +116,7 @@ def _aim(me, seen):
     tx, ty = e["x"] + e["vx"] * t, e["y"] + e["vy"] * t
     want = math.atan2(ty - me["y"], tx - me["x"])
     err = abs(wrap(want - me["turret"]))
-    fire = int(me["cooldown"] == 0 and err < 0.08)
+    fire = int(me["cooldown"] == 0 and err < 0.08 and line_of_sight(me["x"], me["y"], e["x"], e["y"], walls))
     return turn_toward(me["turret"], want, TROT), fire
 
 

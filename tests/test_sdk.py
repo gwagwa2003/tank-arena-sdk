@@ -20,8 +20,8 @@ def test_wrap_and_rays():
 
 
 def test_game_is_deterministic_and_complete():
-    a = play(7, [("gunner", "shield"), ("scout", "boost")], [ChaserBot(seed=1), ChaserBot(seed=2)], replay=True)
-    b = play(7, [("gunner", "shield"), ("scout", "boost")], [ChaserBot(seed=1), ChaserBot(seed=2)], replay=True)
+    a = play(7, [("gunner", "shield"), ("scout", "stealth")], [ChaserBot(seed=1), ChaserBot(seed=2)], replay=True)
+    b = play(7, [("gunner", "shield"), ("scout", "stealth")], [ChaserBot(seed=1), ChaserBot(seed=2)], replay=True)
     assert a == b
     rows, rep = a
     assert {r["outcome"] for r in rows} <= {"W", "L", "D"} and rows[0]["steps"] <= 1200
@@ -112,3 +112,34 @@ def test_export_lstm(tmp_path):
     path = export_model(Net(), tmp_path / "lstm.pt", recurrent=True, hidden=16, layers=1)
     rows, _ = play(1, [("gunner", "shield")] * 2, [ModelPolicy(path), IdleBot()])
     assert rows[0]["errors"] == 0
+
+
+def test_stealth_blinks_and_stops_at_walls():
+    import math
+    from tank_arena.rules import BLINK, MAPS, TR, hits_rect
+
+    class Script:
+        def __init__(self, at): self.at, self.pos = at, {}
+        def act(self, s):
+            self.pos[s["t"]] = (s["self"]["x"], s["self"]["y"])
+            return [2, 1, 1, 0, int(s["t"] == self.at)]
+    pols = [Script(65), Script(65)]
+    game = Game(1, [("standard", "stealth"), ("standard", "stealth")], mapname="fort")
+    while not game.over and game.tick < 80:
+        game.step([p.act(game.state(i)) for i, p in enumerate(pols)])
+    walls = [dict(x=x, y=y, w=w, h=h) for x, y, w, h in MAPS["fort"]["rects"]]
+    jumps = [math.dist(p.pos[65], p.pos[66]) for p in pols]
+    assert max(jumps) > 40 and all(j <= BLINK + 1e-6 for j in jumps)
+    assert all(not any(hits_rect(x, y, TR, w) for w in walls) for p in pols for x, y in p.pos.values())
+
+
+def test_xray_sees_through_walls_one_way():
+    from tank_arena.geometry import visible_enemies
+
+    def tank(x, module, active=False):
+        return dict(x=x, y=400, vx=0.0, vy=0.0, alive=True, stealthed=False, module=module, skill_active=active)
+    wall = [dict(x=190, y=300, w=20, h=200)]
+    sees = lambda me, foe: len(visible_enemies(dict(self=me, enemies=[foe], walls=wall)))
+    assert sees(tank(100, "xray"), tank(300, "shield")) == 0
+    assert sees(tank(100, "xray", True), tank(300, "shield")) == 1
+    assert sees(tank(300, "shield"), tank(100, "xray", True)) == 0

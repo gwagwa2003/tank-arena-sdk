@@ -53,7 +53,7 @@ def check_model(path, speed_limit_ms=20.0, loadout=("standard", "shield"), timed
     except Exception as e:
         return dict(ok=False, message=f"inference failed: {e}", summary=summary)
     try:
-        rows, _ = play(12345, [tuple(loadout), ("standard", "boost")], [ModelPolicy(path), ChaserBot(seed=0)], mapname="fort")
+        rows, _ = play(12345, [tuple(loadout), ("standard", "shield")], [ModelPolicy(path), ChaserBot(seed=0)], mapname="fort")
         summary["test_game"] = dict(outcome=rows[0]["outcome"], hp=round(rows[0]["hp"], 2), kills=rows[0]["kills"], steps=rows[0]["steps"])
         if rows[0]["errors"]:
             return dict(ok=False, message=f"{rows[0]['errors']} steps failed in the test game", summary=summary)

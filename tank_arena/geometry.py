@@ -57,10 +57,10 @@ def view_of(module):
 
 def visible_enemies(state):
     """The enemies this tank can see, nearest first: alive, not stealthed, within view (1.1x for a radar carrier)
-    and not behind a wall. These are the enemies the model observation shows."""
-    me = state["self"]; view = view_of(me.get("module"))
+    and not behind a wall (walls do not count while its own x-ray is on). These are the enemies the model observation shows."""
+    me = state["self"]; view = view_of(me.get("module")); xray = me.get("module") == "xray" and me.get("skill_active")
     dist = lambda e: math.hypot(e["x"] - me["x"], e["y"] - me["y"])
     seen = [e for e in state["enemies"] if e["alive"] and not e["stealthed"]
             and dist(e) < view * (RADAR_SEEN if e.get("module") == "radar" else 1)
-            and line_of_sight(me["x"], me["y"], e["x"], e["y"], state["walls"])]
+            and (xray or line_of_sight(me["x"], me["y"], e["x"], e["y"], state["walls"]))]
     return sorted(seen, key=dist)
