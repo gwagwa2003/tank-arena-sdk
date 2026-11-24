@@ -12,7 +12,7 @@ CHASSIS = dict(standard=(3.0, .070, 15, 11, 70, 100), heavy=(2.5, .060, 18, 11, 
                siege=(2.6, .070, 18, 11, 70, 115), shotgun=(3.0, .070, 24, 11, 30, 100))
 DAMAGE = dict(lancer=15, shotgun=9)  # damage per bullet (shotgun: per pellet); every other chassis does 12
 SIEGE_WAIT, SIEGE_RELOAD, SIEGE_BSPD = 30, 14, 13.0  # siege: after standing still this many steps, reload and bullet speed
-SHOT_N, SHOT_SPREAD = 3, 0.18  # shotgun: pellets per shot, angle between neighbours (rad)
+SHOT_N, SHOT_SPREAD = 3, 0.26  # shotgun: pellets per shot, angle between neighbours (rad)
 # active modules: duration, cooldown (steps); antizone and radar are passive
 MODULES = dict(stealth=(50, 480), shield=(40, 400), xray=(60, 400), smoke=(80, 440), overdrive=(60, 480))
 SMOKE_R = 60  # smoke: radius of the cloud, left where the tank stood
