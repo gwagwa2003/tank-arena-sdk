@@ -55,12 +55,25 @@ def view_of(module):
     return RADAR_VIEW if module == "radar" else BASE_VIEW
 
 
+def in_smoke(ax, ay, bx, by, smokes):
+    """True if the straight line from a to b passes through a smoke cloud (smoke blocks sight, not bullets)."""
+    dx, dy = bx - ax, by - ay
+    L2 = dx * dx + dy * dy or 1e-9
+    for c in smokes:
+        t = max(0.0, min(1.0, ((c["x"] - ax) * dx + (c["y"] - ay) * dy) / L2))
+        if (ax + dx * t - c["x"]) ** 2 + (ay + dy * t - c["y"]) ** 2 < c["r"] ** 2:
+            return True
+    return False
+
+
 def visible_enemies(state):
     """The enemies this tank can see, nearest first: alive, not stealthed, within view (1.1x for a radar carrier)
-    and not behind a wall (walls do not count while its own x-ray is on). These are the enemies the model observation shows."""
+    and not behind a wall or a smoke cloud (neither counts while its own x-ray is on). These are the enemies the model
+    observation shows."""
     me = state["self"]; view = view_of(me.get("module")); xray = me.get("module") == "xray" and me.get("skill_active")
     dist = lambda e: math.hypot(e["x"] - me["x"], e["y"] - me["y"])
     seen = [e for e in state["enemies"] if e["alive"] and not e["stealthed"]
             and dist(e) < view * (RADAR_SEEN if e.get("module") == "radar" else 1)
-            and (xray or line_of_sight(me["x"], me["y"], e["x"], e["y"], state["walls"]))]
+            and (xray or line_of_sight(me["x"], me["y"], e["x"], e["y"], state["walls"])
+                 and not in_smoke(me["x"], me["y"], e["x"], e["y"], state.get("smokes", [])))]
     return sorted(seen, key=dist)

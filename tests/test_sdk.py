@@ -154,3 +154,23 @@ def test_lancer_hits_for_15_and_a_shield_takes_a_whole_bullet(monkeypatch):
             game.step([[2, 1, 1, 1, 0], [2, 1, 1, 0, int(game.tick >= 55)]])
         victim = game.tanks[1]
         assert not victim["alive"] and victim["struck"] == struck and victim["taken"] == 7 * 15
+
+
+def test_siege_overdrive_shotgun_and_smoke(monkeypatch):
+    from tank_arena import engine
+    monkeypatch.setitem(engine.MAPS, "fort", dict(name="empty", rects=[]))
+    game = Game(1, [("siege", "radar"), ("gunner", "overdrive")], mapname="fort")
+    cd = {0: {}, 1: {}}
+    while not game.over and game.tick < 165:
+        for i in (0, 1): cd[i][game.tick] = game.tanks[i]["cooldown"]
+        game.step([[2, 1, 1, 1, 0], [2, 1, 1, 1, int(game.tick >= 60)]])
+    assert game.tanks[0]["sieged"] and max(cd[0][t] for t in range(60, 160)) == 14
+    assert max(cd[1][t] for t in range(64, 118)) == 9 and max(cd[1][t] for t in range(125, 165)) == 12
+    game = Game(2, [("shotgun", "smoke"), ("standard", "radar")], mapname="fort")
+    while game.tick < 70:
+        game.step([[2, 1, 1, 1, int(game.tick >= 60)], [2, 1, 1, 0, 0]])
+    assert game.tanks[0]["shots"] >= 3 and game.tanks[0]["shots"] % 3 == 0          # every pellet counts as a shot
+    assert len(game.smokes) == 1 and game.frame()[4][0][2] == 60
+    s = game.state(1); s["self"] = dict(s["self"], x=400, y=200); s["enemies"][0] = dict(s["enemies"][0], x=400, y=600)
+    s["smokes"] = [dict(x=400, y=400, r=60, t=50)]
+    assert visible_enemies(s) == []

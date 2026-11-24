@@ -26,6 +26,7 @@ function frame(now) {
   g.fillStyle = css("--arena"); g.fillRect(0, 0, 800, 800);
   g.beginPath(); g.rect(0, 0, 800, 800); g.arc(D.zone[0], D.zone[1], A[1], 0, Math.PI * 2, true); g.fillStyle = css("--zone"); g.fill("evenodd");
   g.fillStyle = css("--wall"); D.walls.forEach(([x, y, w, h]) => g.fillRect(x, y, w, h));
+  (A[4] || []).forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fillStyle = "rgba(140,145,155,.45)"; g.fill(); });  // smoke
   A[3].forEach(([x, y, o]) => { g.beginPath(); g.arc(x, y, 3.5, 0, Math.PI * 2); g.fillStyle = C[o]; g.fill(); });
   A[2].forEach(([x, y, hd, tu, hp, alive, skill, shield], k) => {
     g.save(); g.translate(x, y); g.globalAlpha = alive ? (D.players[k].module === "stealth" && skill ? .35 : 1) : .25;

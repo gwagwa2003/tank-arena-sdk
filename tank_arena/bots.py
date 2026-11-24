@@ -72,11 +72,12 @@ class ChaserBot:
             goal = to_zone
         elif e is not None:
             d = math.hypot(e["x"] - me["x"], e["y"] - me["y"])
+            keep = min(self.distance, 150) if me["chassis"] == "shotgun" else self.distance   # shotgun: range ~330
             to_e = math.atan2(e["y"] - me["y"], e["x"] - me["x"])
             if t >= self.flip_at:                         # change the circling direction now and then
                 self.side = self.rng.choice((-1, 1)); self.flip_at = t + self.rng.randint(40, 120)
-            if d > self.distance + 40: goal = to_e + (0.35 * self.side if self.strafe else 0)
-            elif d < self.distance - 40: goal = to_e + math.pi - 0.35 * self.side
+            if d > keep + 40: goal = to_e + (0.35 * self.side if self.strafe else 0)
+            elif d < keep - 40: goal = to_e + math.pi - 0.35 * self.side
             else: goal = to_e + (math.pi / 2) * self.side if self.strafe else to_e
         else:
             goal = to_zone if zone_d > 60 else me["heading"] + 0.6
@@ -94,12 +95,17 @@ class ChaserBot:
         else:
             self.stuck = 0
 
+        los = e is not None and line_of_sight(me["x"], me["y"], e["x"], e["y"], state["walls"])
+        if me["chassis"] == "siege" and los and zone_d < zone["r"] - 40 and math.hypot(e["x"] - me["x"], e["y"] - me["y"]) < 450:
+            move = STOP                                   # siege: stand still to set up (faster reload, faster bullets)
         skill = 0
         m = me.get("module")
         if m in MODULES and me["skill_ready"]:
             if m == "shield": skill = int(_bullet_coming(state, 70))
             elif m == "stealth": skill = int(hurt and me["hp_frac"] < 0.6)
             elif m == "xray": skill = int(e is None and t > 60)
+            elif m == "smoke": skill = int(hurt and me["hp_frac"] < 0.6 and e is not None)
+            elif m == "overdrive": skill = int(los and math.hypot(e["x"] - me["x"], e["y"] - me["y"]) < 380)
         if m == "stealth" and me["skill_active"]: fire = 0   # firing ends stealth
         return [move, body, aim, fire, skill]
 
@@ -110,7 +116,7 @@ def _aim(me, seen, walls):
     if not seen:
         return turn_toward(me["turret"], me["heading"], TROT), 0
     e = seen[0]
-    speed = CHASSIS[me["chassis"]][3]
+    speed = me.get("bspd_now") or CHASSIS[me["chassis"]][3]
     dx, dy = e["x"] - me["x"], e["y"] - me["y"]
     t = math.hypot(dx, dy) / speed                       # bullet flight time, then aim where the enemy will be
     tx, ty = e["x"] + e["vx"] * t, e["y"] + e["vy"] * t

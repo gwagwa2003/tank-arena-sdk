@@ -70,7 +70,8 @@ class ArenaClient:
         return self._get("/api/config")
 
     def set_loadout(self, chassis, module, tank_name=None):
-        """chassis: standard / heavy / scout / gunner / lancer; module: stealth / shield / antizone / radar / xray."""
+        """chassis: standard / heavy / scout / gunner / lancer / siege / shotgun;
+        module: stealth / shield / antizone / radar / xray / smoke / overdrive."""
         return self._post("/api/loadout", dict(chassis=chassis, module=module, tank_name=tank_name))
 
     def sit_out(self, resting=True):

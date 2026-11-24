@@ -11,7 +11,8 @@ import math
 import random
 
 from .geometry import wrap
-from .rules import ARENA, BLINK, CHASSIS, DAMAGE, MAPS, MODULES, STEPS, TR, TROT, hits_rect
+from .rules import (ARENA, BLINK, CHASSIS, DAMAGE, MAPS, MODULES, OVERDRIVE, SHOT_N, SHOT_SPREAD, SIEGE_BSPD, SIEGE_RELOAD,
+                    SIEGE_WAIT, SMOKE_R, STEPS, TR, TROT, hits_rect)
 
 IDLE = [2, 1, 1, 0, 0]          # stop, keep heading, keep turret, hold fire, no skill
 ACTION_SIZES = (3, 3, 3, 2, 2)  # move, body, turret, fire, skill
@@ -60,8 +61,9 @@ class Game:
                                    chassis=c, module=m, cooldown=20, skill_ready=False, skill_active=False, stealthed=False,
                                    alive=True, skill_cd=60, skill_t=0, shield=0, kills=0, hits=0, shots=0, damage=0,
                                    taken=0, zone_death=False, death=STEPS, skills=0, errors=0, killer=None,
-                                   threats=0, dodged=0, struck=0))
+                                   threats=0, dodged=0, struck=0, still=0, sieged=False, bspd_now=CHASSIS[c][3]))
         self.bullets = []
+        self.smokes = []       # smoke clouds: x, y, r, t (steps left)
         self.tick = 0          # the step about to be played
         self.steps = 0         # steps played
         self.over = False
@@ -88,14 +90,16 @@ class Game:
         a = self.tanks[i]
         return dict(t=self.tick, self=a, enemies=[b for b in self.tanks if b is not a],
                     bullets=[dict(x=b["x"], y=b["y"], vx=b["vx"], vy=b["vy"], own=False) for b in self.bullets if b["owner"] != i],
-                    zone=self.zone, walls=self.walls)
+                    zone=self.zone, walls=self.walls, smokes=self.smokes)
 
     def frame(self):
-        """This moment for a replay: [step, zone radius, tanks [x, y, heading, turret, hp, alive, skill, shield], bullets]."""
+        """This moment for a replay: [step, zone radius, tanks [x, y, heading, turret, hp, alive, skill, shield, sieged], bullets,
+        smoke clouds [x, y, r, steps left]]."""
         return [self.tick if not self.over else self.steps, round(self.zone["r"], 1),
                 [[round(a["x"], 1), round(a["y"], 1), round(a["heading"], 3), round(a["turret"], 3),
-                  round(a["hp_frac"], 3), int(a["alive"]), int(a["skill_active"]), int(a["shield"] > 0)] for a in self.tanks],
-                [[round(b["x"], 1), round(b["y"], 1), b["owner"]] for b in self.bullets]]
+                  round(a["hp_frac"], 3), int(a["alive"]), int(a["skill_active"]), int(a["shield"] > 0), int(a["sieged"])] for a in self.tanks],
+                [[round(b["x"], 1), round(b["y"], 1), b["owner"]] for b in self.bullets],
+                [[round(s["x"], 1), round(s["y"], 1), s["r"], s["t"]] for s in self.smokes]]
 
     def _free(self, x, y, i):
         return (TR < x < ARENA - TR and TR < y < ARENA - TR and not any(hits_rect(x, y, TR, w) for w in self.walls)
@@ -119,6 +123,7 @@ class Game:
             if m in MODULES and act[4] == 1 and a["skill_cd"] <= 0:
                 a["skill_t"], a["skill_cd"] = MODULES[m]; just = True; a["skills"] += 1
                 if m == "shield": a["shield"] = 12
+                if m == "smoke": self.smokes.append(dict(x=a["x"], y=a["y"], r=SMOKE_R, t=MODULES["smoke"][0]))
                 if m == "stealth":                            # blink: 4 px at a time, stop in front of walls and tanks
                     d = a["heading"] + (math.pi if act[0] == 1 else 0)
                     for _ in range(BLINK // 4):
@@ -133,13 +138,20 @@ class Game:
                 elif self._free(nx, oy, a["id"]): a["x"] = nx
                 elif self._free(ox, ny, a["id"]): a["y"] = ny
             a["vx"], a["vy"] = a["x"] - ox, a["y"] - oy
+            a["still"] = a["still"] + 1 if abs(a["vx"]) + abs(a["vy"]) < 0.05 else 0
+            a["sieged"] = a["chassis"] == "siege" and a["still"] >= SIEGE_WAIT   # siege: set up after standing still
+            if a["sieged"]: reload, bspd = SIEGE_RELOAD, SIEGE_BSPD
+            if m == "overdrive" and a["skill_t"] > 0: reload = round(reload * OVERDRIVE)
+            a["bspd_now"] = bspd
             a["turret"] = wrap(a["turret"] + (act[2] - 1) * TROT); a["cooldown"] = max(0, a["cooldown"] - 1)
             if act[3] == 1 and not a["cooldown"] and not (just and m == "stealth"):
-                self._uid += 1
-                self.bullets.append(dict(uid=self._uid, x=a["x"] + math.cos(a["turret"]) * 24, y=a["y"] + math.sin(a["turret"]) * 24,
-                                         vx=math.cos(a["turret"]) * bspd, vy=math.sin(a["turret"]) * bspd, owner=a["id"], life=blife,
-                                         dmg=DAMAGE.get(a["chassis"], 12)))
-                a["cooldown"] = reload; a["shots"] += 1
+                k = SHOT_N if a["chassis"] == "shotgun" else 1
+                for q in range(k):                            # shotgun: a fan of pellets, the middle one where the turret points
+                    self._uid += 1; ang = a["turret"] + (q - (k - 1) / 2) * SHOT_SPREAD
+                    self.bullets.append(dict(uid=self._uid, x=a["x"] + math.cos(ang) * 24, y=a["y"] + math.sin(ang) * 24,
+                                             vx=math.cos(ang) * bspd, vy=math.sin(ang) * bspd, owner=a["id"], life=blife,
+                                             dmg=DAMAGE.get(a["chassis"], 12)))
+                a["cooldown"] = reload; a["shots"] += k  # every pellet counts, so hits <= shots
                 if m == "stealth": a["skill_t"] = 0
         keep = []
         for b in self.bullets:
@@ -180,6 +192,8 @@ class Game:
             a["skill_active"] = a["skill_t"] > 0
             a["stealthed"] = a["module"] == "stealth" and a["skill_active"]
             a["hp_frac"] = max(0, a["hp"]) / CHASSIS[a["chassis"]][5]
+        for s in self.smokes: s["t"] -= 1
+        self.smokes[:] = [s for s in self.smokes if s["t"] > 0]
         self.steps = tick + 1
         self.tick += 1
         self._begin()
