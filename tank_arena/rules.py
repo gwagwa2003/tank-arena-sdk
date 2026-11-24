@@ -7,20 +7,21 @@ MAPS = {
                                      (40, 385, 110, 30), (650, 385, 110, 30), (370, 70, 60, 44), (370, 686, 60, 44)]),
 }
 # chassis: speed (px/step), body turn (rad/step), reload (steps), bullet speed, bullet life (steps), HP
-CHASSIS = dict(standard=(3.0, .070, 18, 11, 70, 100), heavy=(2.5, .060, 18, 11, 70, 120), scout=(3.8, .075, 18, 11, 70, 80),
+CHASSIS = dict(standard=(3.0, .070, 17, 11, 70, 100), heavy=(2.5, .060, 18, 11, 70, 120), scout=(5.0, .075, 18, 11, 70, 80),
                gunner=(3.0, .070, 12, 11, 55, 90), lancer=(3.0, .070, 26, 12.5, 70, 100))
+DAMAGE = dict(lancer=15)  # damage per bullet; every other chassis does 12
 # active modules: duration, cooldown (steps); antizone and radar are passive
 MODULES = dict(stealth=(50, 480), shield=(40, 400), xray=(60, 400))
 BLINK = 80  # stealth: jump this far (px) along the move direction when it starts; stops in front of walls
 ALL_MODULES = ["stealth", "shield", "antizone", "radar", "xray"]
 ARENA, TR, TROT, STEPS = 800, 16, 0.11, 1200
 
-CHASSIS_INFO = {  # same five items for every chassis; range = bullet speed x bullet life
-    "standard": "標準：速度 3.0、裝填 18、子彈速度 11、射程約 770、血量 100",
-    "heavy": "重裝：速度 2.5、裝填 18、子彈速度 11、射程約 770、血量 120",
-    "scout": "輕裝：速度 3.8、裝填 18、子彈速度 11、射程約 770、血量 80",
-    "gunner": "速射：速度 3.0、裝填 12、子彈速度 11、射程約 605、血量 90",
-    "lancer": "長砲：速度 3.0、裝填 26、子彈速度 12.5、射程約 875、血量 100",
+CHASSIS_INFO = {  # same six items for every chassis; range = bullet speed x bullet life
+    "standard": "標準：速度 3.0、裝填 17、傷害 12、子彈速度 11、射程約 770、血量 100",
+    "heavy": "重裝：速度 2.5、裝填 18、傷害 12、子彈速度 11、射程約 770、血量 120",
+    "scout": "輕裝：速度 5.0、裝填 18、傷害 12、子彈速度 11、射程約 770、血量 80",
+    "gunner": "速射：速度 3.0、裝填 12、傷害 12、子彈速度 11、射程約 605、血量 90",
+    "lancer": "長砲：速度 3.0、裝填 26、傷害 15、子彈速度 12.5、射程約 875、血量 100",
 }
 MODULE_INFO = {
     "stealth": "隱身：啟動時往移動方向閃現 80（後退時往後、撞牆就停），之後 2.5 秒內不出現在敵人觀測裡、冷卻 24 秒，開火就解除",

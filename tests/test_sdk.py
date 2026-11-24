@@ -143,3 +143,14 @@ def test_xray_sees_through_walls_one_way():
     assert sees(tank(100, "xray"), tank(300, "shield")) == 0
     assert sees(tank(100, "xray", True), tank(300, "shield")) == 1
     assert sees(tank(300, "shield"), tank(100, "xray", True)) == 0
+
+
+def test_lancer_hits_for_15_and_a_shield_takes_a_whole_bullet(monkeypatch):
+    from tank_arena import engine
+    monkeypatch.setitem(engine.MAPS, "fort", dict(name="empty", rects=[]))   # the two spawns face each other
+    for module, struck in (("radar", 7), ("shield", 8)):
+        game = Game(1, [("lancer", "radar"), ("standard", module)], mapname="fort")
+        while not game.over:
+            game.step([[2, 1, 1, 1, 0], [2, 1, 1, 0, int(game.tick >= 55)]])
+        victim = game.tanks[1]
+        assert not victim["alive"] and victim["struck"] == struck and victim["taken"] == 7 * 15

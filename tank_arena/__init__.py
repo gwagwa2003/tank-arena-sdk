@@ -2,7 +2,7 @@
 
     from tank_arena import play, Game, observation, TankEnv, ChaserBot, export_model, ArenaClient
 """
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from .bots import ChaserBot, IdleBot, TurretBot
 from .client import ArenaClient

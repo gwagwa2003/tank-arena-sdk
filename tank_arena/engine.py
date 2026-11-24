@@ -1,6 +1,6 @@
 """The game: same rules and the same physics as the Tank Arena server.
 
-1,200 steps (20 steps = 1 second), 12 damage per bullet, a shield absorbs one bullet, the safe zone shrinks from radius
+1,200 steps (20 steps = 1 second), 12 damage per bullet (lancer 15), a shield absorbs one bullet, the safe zone shrinks from radius
 620 to 90 between steps 200 and 1,000, 0.5 HP per step outside it (0.25 with antizone).
 
 Two ways to use it:
@@ -11,7 +11,7 @@ import math
 import random
 
 from .geometry import wrap
-from .rules import ARENA, BLINK, CHASSIS, MAPS, MODULES, STEPS, TR, TROT, hits_rect
+from .rules import ARENA, BLINK, CHASSIS, DAMAGE, MAPS, MODULES, STEPS, TR, TROT, hits_rect
 
 IDLE = [2, 1, 1, 0, 0]          # stop, keep heading, keep turret, hold fire, no skill
 ACTION_SIZES = (3, 3, 3, 2, 2)  # move, body, turret, fire, skill
@@ -137,7 +137,8 @@ class Game:
             if act[3] == 1 and not a["cooldown"] and not (just and m == "stealth"):
                 self._uid += 1
                 self.bullets.append(dict(uid=self._uid, x=a["x"] + math.cos(a["turret"]) * 24, y=a["y"] + math.sin(a["turret"]) * 24,
-                                         vx=math.cos(a["turret"]) * bspd, vy=math.sin(a["turret"]) * bspd, owner=a["id"], life=blife))
+                                         vx=math.cos(a["turret"]) * bspd, vy=math.sin(a["turret"]) * bspd, owner=a["id"], life=blife,
+                                         dmg=DAMAGE.get(a["chassis"], 12)))
                 a["cooldown"] = reload; a["shots"] += 1
                 if m == "stealth": a["skill_t"] = 0
         keep = []
@@ -155,7 +156,7 @@ class Game:
                 if d2 < 256 and target is None: target = a
             if target:
                 sh = ts[b["owner"]]; sh["hits"] += 1; target["struck"] += 1; target["dodged"] -= 1
-                blocked = min(target["shield"], 12); target["shield"] -= blocked; dmg = 12 - blocked
+                dmg = 0 if target["shield"] > 0 else b["dmg"]; target["shield"] = 0  # the shield takes one whole bullet
                 target["hp"] -= dmg; target["taken"] += dmg; sh["damage"] += dmg
                 if target["hp"] <= 0 and target["alive"]:
                     target["alive"] = False; target["hp_frac"] = 0.0; target["death"] = tick; target["killer"] = sh["id"]
