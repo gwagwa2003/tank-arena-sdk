@@ -11,7 +11,7 @@ import math
 import random
 
 from .geometry import wrap
-from .rules import (ARENA, BLINK, CHASSIS, DAMAGE, MAPS, MODULES, OVERDRIVE, SHOT_N, SHOT_SPREAD, SIEGE_BSPD, SIEGE_RELOAD,
+from .rules import (ARENA, BLINK, CHASSIS, DAMAGE, MAPS, MODULES, OVERDRIVE, SHOT_FALLOFF, SHOT_N, SHOT_SPREAD, SIEGE_BSPD, SIEGE_RELOAD,
                     SIEGE_WAIT, SMOKE_R, STEPS, TR, TROT, hits_rect)
 
 IDLE = [2, 1, 1, 0, 0]          # stop, keep heading, keep turret, hold fire, no skill
@@ -150,7 +150,8 @@ class Game:
                     self._uid += 1; ang = a["turret"] + (q - (k - 1) / 2) * SHOT_SPREAD
                     self.bullets.append(dict(uid=self._uid, x=a["x"] + math.cos(ang) * 24, y=a["y"] + math.sin(ang) * 24,
                                              vx=math.cos(ang) * bspd, vy=math.sin(ang) * bspd, owner=a["id"], life=blife,
-                                             dmg=DAMAGE.get(a["chassis"], 12)))
+                                             dmg=DAMAGE.get(a["chassis"], 12), life0=blife,
+                                             fall=SHOT_FALLOFF if a["chassis"] == "shotgun" else None))
                 a["cooldown"] = reload; a["shots"] += k  # every pellet counts, so hits <= shots
                 if m == "stealth": a["skill_t"] = 0
         keep = []
@@ -168,7 +169,11 @@ class Game:
                 if d2 < 256 and target is None: target = a
             if target:
                 sh = ts[b["owner"]]; sh["hits"] += 1; target["struck"] += 1; target["dodged"] -= 1
-                dmg = 0 if target["shield"] > 0 else b["dmg"]; target["shield"] = 0  # the shield takes one whole bullet
+                raw = b["dmg"]
+                if b["fall"]:                                 # shotgun: full damage up close, less the further it flew
+                    near, far, s1, s2 = b["fall"]; age = b["life0"] - b["life"]
+                    raw = near if age <= s1 else far if age >= s2 else round(near + (far - near) * (age - s1) / (s2 - s1))
+                dmg = 0 if target["shield"] > 0 else raw; target["shield"] = 0  # the shield takes one whole bullet
                 target["hp"] -= dmg; target["taken"] += dmg; sh["damage"] += dmg
                 if target["hp"] <= 0 and target["alive"]:
                     target["alive"] = False; target["hp_frac"] = 0.0; target["death"] = tick; target["killer"] = sh["id"]

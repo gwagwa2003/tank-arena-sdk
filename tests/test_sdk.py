@@ -174,3 +174,17 @@ def test_siege_overdrive_shotgun_and_smoke(monkeypatch):
     s = game.state(1); s["self"] = dict(s["self"], x=400, y=200); s["enemies"][0] = dict(s["enemies"][0], x=400, y=600)
     s["smokes"] = [dict(x=400, y=400, r=60, t=50)]
     assert visible_enemies(s) == []
+
+
+def test_shotgun_hits_hardest_up_close(monkeypatch):
+    from tank_arena import engine
+    monkeypatch.setitem(engine.MAPS, "fort", dict(name="empty", rects=[]))
+    taken = {}
+    for gap in (50, 250):                                   # point-blank: all three at 14; far: only the middle one, at 7
+        game = Game(1, [("shotgun", "radar"), ("standard", "radar")], mapname="fort")
+        a, b = game.tanks
+        a.update(x=300.0, y=400.0, heading=0.0, turret=0.0, cooldown=0); b.update(x=300.0 + gap, y=400.0)
+        for _ in range(30):
+            game.step([[2, 1, 1, int(game.tick == 0), 0], [2, 1, 1, 0, 0]])
+        taken[gap] = b["taken"]
+    assert taken == {50: 42, 250: 7}

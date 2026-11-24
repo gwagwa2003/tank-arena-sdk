@@ -10,9 +10,10 @@ MAPS = {
 CHASSIS = dict(standard=(3.0, .070, 15, 11, 70, 100), heavy=(2.5, .060, 18, 11, 70, 120), scout=(5.0, .075, 18, 11, 70, 90),
                gunner=(3.0, .070, 12, 11, 55, 90), lancer=(3.0, .070, 26, 12.5, 70, 100),
                siege=(2.6, .070, 18, 11, 70, 115), shotgun=(3.0, .070, 24, 11, 30, 100))
-DAMAGE = dict(lancer=15, shotgun=9)  # damage per bullet (shotgun: per pellet); every other chassis does 12
+DAMAGE = dict(lancer=15)  # damage per bullet; every other chassis does 12 (shotgun: see SHOT_FALLOFF)
 SIEGE_WAIT, SIEGE_RELOAD, SIEGE_BSPD = 30, 14, 13.0  # siege: after standing still this many steps, reload and bullet speed
-SHOT_N, SHOT_SPREAD = 3, 0.26  # shotgun: pellets per shot, angle between neighbours (rad)
+SHOT_N, SHOT_SPREAD = 3, 0.30  # shotgun: pellets per shot, angle between neighbours (rad)
+SHOT_FALLOFF = (14, 7, 6, 14)  # shotgun pellet: 14 damage while it has flown <= 6 steps (~66 px), then down to 7 at 14 steps (~154 px)
 # active modules: duration, cooldown (steps); antizone and radar are passive
 MODULES = dict(stealth=(50, 480), shield=(40, 400), xray=(60, 400), smoke=(80, 440), overdrive=(60, 480))
 SMOKE_R = 60  # smoke: radius of the cloud, left where the tank stood
@@ -28,7 +29,7 @@ CHASSIS_INFO = {  # same six items for every chassis; range = bullet speed x bul
     "gunner": "速射：速度 3.0、裝填 12、傷害 12、子彈速度 11、射程約 605、血量 90",
     "lancer": "長砲：速度 3.0、裝填 26、傷害 15、子彈速度 12.5、射程約 875、血量 100",
     "siege": "攻城：速度 2.6、裝填 18（停住 1.5 秒後 14）、傷害 12、子彈速度 11（停住後 13）、射程約 770、血量 115",
-    "shotgun": "散彈：速度 3.0、裝填 24、一次 3 顆各 9 傷害、子彈速度 11、射程約 330、血量 100",
+    "shotgun": "散彈：速度 3.0、裝填 24、一次 3 顆（約 66 內每顆 14 傷害，越遠越低，約 154 外 7）、子彈速度 11、射程約 330、血量 100",
 }
 MODULE_INFO = {
     "stealth": "隱身：啟動時往移動方向閃現 80（後退時往後、撞牆就停），之後 2.5 秒內不出現在敵人觀測裡、冷卻 24 秒，開火就解除",
