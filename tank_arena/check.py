@@ -15,7 +15,7 @@ from .observation import OBS_SIZE
 MAX_MB = 10      # the server's current limit (GET /api/config -> max_model_mb)
 
 
-def check_model(path, speed_limit_ms=20.0, loadout=("standard", "shield"), timed_steps=400, max_mb=MAX_MB):
+def check_model(path, speed_limit_ms=20.0, loadout=("gunner", "shield"), timed_steps=400, max_mb=MAX_MB):
     """dict(ok, message, summary). speed_limit_ms is the server's limit (GET /api/config -> speed_limit_ms), measured on
     the server's CPU, which may be slower than yours: leave some margin."""
     import torch
@@ -53,7 +53,7 @@ def check_model(path, speed_limit_ms=20.0, loadout=("standard", "shield"), timed
     except Exception as e:
         return dict(ok=False, message=f"inference failed: {e}", summary=summary)
     try:
-        rows, _ = play(12345, [tuple(loadout), ("standard", "shield")], [ModelPolicy(path), ChaserBot(seed=0)], mapname="fort")
+        rows, _ = play(12345, [tuple(loadout), ("gunner", "shield")], [ModelPolicy(path), ChaserBot(seed=0)], mapname="fort")
         summary["test_game"] = dict(outcome=rows[0]["outcome"], hp=round(rows[0]["hp"], 2), kills=rows[0]["kills"], steps=rows[0]["steps"])
         if rows[0]["errors"]:
             return dict(ok=False, message=f"{rows[0]['errors']} steps failed in the test game", summary=summary)

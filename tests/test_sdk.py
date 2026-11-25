@@ -20,8 +20,8 @@ def test_wrap_and_rays():
 
 
 def test_game_is_deterministic_and_complete():
-    a = play(7, [("gunner", "shield"), ("scout", "stealth")], [ChaserBot(seed=1), ChaserBot(seed=2)], replay=True)
-    b = play(7, [("gunner", "shield"), ("scout", "stealth")], [ChaserBot(seed=1), ChaserBot(seed=2)], replay=True)
+    a = play(7, [("gunner", "shield"), ("skirmisher", "backstep")], [ChaserBot(seed=1), ChaserBot(seed=2)], replay=True)
+    b = play(7, [("gunner", "shield"), ("skirmisher", "backstep")], [ChaserBot(seed=1), ChaserBot(seed=2)], replay=True)
     assert a == b
     rows, rep = a
     assert {r["outcome"] for r in rows} <= {"W", "L", "D"} and rows[0]["steps"] <= 1200
@@ -30,9 +30,10 @@ def test_game_is_deterministic_and_complete():
 
 
 def test_idle_tanks_die_in_the_zone_or_draw():
-    rows, _ = play(3, [("standard", "shield"), ("standard", "antizone")], [IdleBot(), IdleBot()])
-    # antizone takes half damage outside the zone, so it outlives the other one (or both survive to a draw)
-    assert rows[1]["outcome"] in ("W", "D")
+    rows, _ = play(3, [("gunner", "shield"), ("marksman", "radar")], [IdleBot(), IdleBot()])
+    # nobody shoots: whoever is left outside the shrinking zone dies there (or both survive to a draw)
+    assert sorted(r["outcome"] for r in rows) in (["D", "D"], ["L", "W"]) and all(r["taken"] == 0 for r in rows)
+    assert all(r["zone_death"] for r in rows if r["outcome"] == "L")
 
 
 def test_chaser_beats_idle_and_turret():
@@ -42,7 +43,7 @@ def test_chaser_beats_idle_and_turret():
 
 
 def test_observation_layout():
-    g = Game(1, [("gunner", "radar"), ("heavy", "shield")], mapname="fort")
+    g = Game(1, [("gunner", "radar"), ("marksman", "shield")], mapname="fort")
     st = g.state(0)
     o = observation(st)
     assert o.shape == (91,) and o.dtype == np.float32 and np.all(np.isfinite(o))
@@ -55,7 +56,7 @@ def test_observation_layout():
 def test_bad_actions_count_as_errors():
     class Broken:
         def act(self, state): return [9, 9, 9, 9, 9]
-    rows, _ = play(2, [("standard", "shield")] * 2, [Broken(), IdleBot()])
+    rows, _ = play(2, [("gunner", "shield")] * 2, [Broken(), IdleBot()])
     assert rows[0]["errors"] > 0
 
 
@@ -124,7 +125,7 @@ def test_stealth_blinks_and_stops_at_walls():
             self.pos[s["t"]] = (s["self"]["x"], s["self"]["y"])
             return [2, 1, 1, 0, int(s["t"] == self.at)]
     pols = [Script(65), Script(65)]
-    game = Game(1, [("standard", "stealth"), ("standard", "stealth")], mapname="fort")
+    game = Game(1, [("gunner", "stealth"), ("gunner", "stealth")], mapname="fort")
     while not game.over and game.tick < 80:
         game.step([p.act(game.state(i)) for i, p in enumerate(pols)])
     walls = [dict(x=x, y=y, w=w, h=h) for x, y, w, h in MAPS["fort"]["rects"]]
@@ -133,47 +134,33 @@ def test_stealth_blinks_and_stops_at_walls():
     assert all(not any(hits_rect(x, y, TR, w) for w in walls) for p in pols for x, y in p.pos.values())
 
 
-def test_xray_sees_through_walls_one_way():
-    from tank_arena.geometry import visible_enemies
-
-    def tank(x, module, active=False):
-        return dict(x=x, y=400, vx=0.0, vy=0.0, alive=True, stealthed=False, module=module, skill_active=active)
-    wall = [dict(x=190, y=300, w=20, h=200)]
-    sees = lambda me, foe: len(visible_enemies(dict(self=me, enemies=[foe], walls=wall)))
-    assert sees(tank(100, "xray"), tank(300, "shield")) == 0
-    assert sees(tank(100, "xray", True), tank(300, "shield")) == 1
-    assert sees(tank(300, "shield"), tank(100, "xray", True)) == 0
-
-
-def test_lancer_hits_for_15_and_a_shield_takes_a_whole_bullet(monkeypatch):
+def test_marksman_hits_for_18_and_a_shield_takes_a_whole_bullet(monkeypatch):
     from tank_arena import engine
-    monkeypatch.setitem(engine.MAPS, "fort", dict(name="empty", rects=[]))   # the two spawns face each other
-    for module, struck in (("radar", 7), ("shield", 8)):
-        game = Game(1, [("lancer", "radar"), ("standard", module)], mapname="fort")
-        while not game.over:
-            game.step([[2, 1, 1, 1, 0], [2, 1, 1, 0, int(game.tick >= 55)]])
+    monkeypatch.setitem(engine.MAPS, "fort", dict(name="empty", rects=[]))   # the two spawns face each other, 700 px apart
+    for module, struck in (("radar", 5), ("shield", 6)):
+        game = Game(1, [("marksman", "radar"), ("gunner", module)], mapname="fort")
+        while not game.over:                                # the marksman closes 40 steps to get in range, then stands
+            game.step([[0 if game.tick < 40 else 2, 1, 1, 1, 0], [2, 1, 1, 0, int(game.tick >= 55)]])
         victim = game.tanks[1]
-        assert not victim["alive"] and victim["struck"] == struck and victim["taken"] == 7 * 15
+        assert not victim["alive"] and victim["struck"] == struck and victim["taken"] == 5 * 18   # 90 HP: 5 hits
 
 
-def test_siege_overdrive_shotgun_and_smoke(monkeypatch):
+def test_backstep_and_focus(monkeypatch):
     from tank_arena import engine
     monkeypatch.setitem(engine.MAPS, "fort", dict(name="empty", rects=[]))
-    game = Game(1, [("siege", "radar"), ("gunner", "overdrive")], mapname="fort")
-    cd = {0: {}, 1: {}}
-    while not game.over and game.tick < 165:
-        for i in (0, 1): cd[i][game.tick] = game.tanks[i]["cooldown"]
-        game.step([[2, 1, 1, 1, 0], [2, 1, 1, 1, int(game.tick >= 60)]])
-    assert game.tanks[0]["sieged"] and max(cd[0][t] for t in range(60, 160)) == 14
-    assert max(cd[1][t] for t in range(64, 118)) == 9 and max(cd[1][t] for t in range(125, 165)) == 12
-    game = Game(2, [("shotgun", "smoke"), ("standard", "radar")], mapname="fort")
-    while game.tick < 70:
-        game.step([[2, 1, 1, 1, int(game.tick >= 60)], [2, 1, 1, 0, 0]])
-    assert game.tanks[0]["shots"] >= 3 and game.tanks[0]["shots"] % 3 == 0          # every pellet counts as a shot
-    assert len(game.smokes) == 1 and game.frame()[4][0][2] == 60
-    s = game.state(1); s["self"] = dict(s["self"], x=400, y=200); s["enemies"][0] = dict(s["enemies"][0], x=400, y=600)
-    s["smokes"] = [dict(x=400, y=400, r=60, t=50)]
-    assert visible_enemies(s) == []
+    game = Game(1, [("skirmisher", "backstep"), ("marksman", "focus")], mapname="fort")
+    pos, bspd = {}, {}
+    while game.tick < 110:
+        pos[game.tick] = [(t["x"], t["y"]) for t in game.tanks]; bspd[game.tick] = game.tanks[1]["bspd_now"]
+        game.step([[2, 1, 1, 0, int(game.tick == 60)], [0, 1, 1, 0, int(game.tick == 60)]])
+    hop = {t: math.dist(pos[t + 1][0], pos[t][0]) for t in range(55, 66)}
+    assert abs(hop[61] - 24) < 1e-6 and all(hop[t] < 1e-9 for t in hop if t != 61)        # the step after pressing
+    (x0, y0), (x1, y1) = pos[61][0], pos[62][0]
+    t0 = game.tanks[0]["turret"]
+    assert abs(wrap(math.atan2(y0 - y1, x0 - x1) - t0)) < 1e-6                           # straight away from the turret
+    assert bspd[60] == 11 and all(bspd[t] == 14 for t in range(61, 101)) and bspd[101] == 11
+    v = lambda t: math.dist(pos[t + 1][1], pos[t][1])
+    assert abs(v(50) - 2.8) < 1e-6 and abs(v(70) - 2.8 * 0.78) < 1e-6
 
 
 def test_shotgun_hits_hardest_up_close(monkeypatch):
@@ -181,7 +168,7 @@ def test_shotgun_hits_hardest_up_close(monkeypatch):
     monkeypatch.setitem(engine.MAPS, "fort", dict(name="empty", rects=[]))
     taken = {}
     for gap in (50, 250):                                   # point-blank: all three at 14; far: only the middle one, at 7
-        game = Game(1, [("shotgun", "radar"), ("standard", "radar")], mapname="fort")
+        game = Game(1, [("shotgun", "radar"), ("marksman", "radar")], mapname="fort")
         a, b = game.tanks
         a.update(x=300.0, y=400.0, heading=0.0, turret=0.0, cooldown=0); b.update(x=300.0 + gap, y=400.0)
         for _ in range(30):

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tank-arena-sdk"
-version = "0.3.3"
+version = "0.4.0"
 description = "Tank Arena SDK: the game engine, the 91-number observation, a training environment, model export and the site's API"
 readme = "README.md"
 requires-python = ">=3.10"

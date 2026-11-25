@@ -11,7 +11,7 @@ import math
 import random
 
 from .geometry import wrap
-from .rules import (ARENA, BLINK, CHASSIS, DAMAGE, MAPS, MODULES, OVERDRIVE, SHOT_FALLOFF, SHOT_N, SHOT_SPREAD, SIEGE_BSPD, SIEGE_RELOAD,
+from .rules import (ARENA, BACKSTEP, BLINK, CHASSIS, DAMAGE, FOCUS_BSPD, FOCUS_MOVE, MAPS, MODULES, OVERDRIVE, SHOT_FALLOFF, SHOT_N, SHOT_SPREAD, SIEGE_BSPD, SIEGE_RELOAD,
                     SIEGE_WAIT, SMOKE_R, STEPS, TR, TROT, hits_rect)
 
 IDLE = [2, 1, 1, 0, 0]          # stop, keep heading, keep turret, hold fire, no skill
@@ -130,8 +130,14 @@ class Game:
                         tx, ty = a["x"] + math.cos(d) * 4, a["y"] + math.sin(d) * 4
                         if not self._free(tx, ty, a["id"]): break
                         a["x"], a["y"] = tx, ty
+            if m == "backstep" and a["skill_t"] == 1:       # the step after pressing: hop back from the turret, 4 px at a time
+                for _ in range(BACKSTEP // 4):
+                    tx, ty = a["x"] - math.cos(a["turret"]) * 4, a["y"] - math.sin(a["turret"]) * 4
+                    if not self._free(tx, ty, a["id"]): break
+                    a["x"], a["y"] = tx, ty
             a["heading"] = wrap(a["heading"] + (act[1] - 1) * rot)
             v = spd * (1 if act[0] == 0 else -0.6 if act[0] == 1 else 0)
+            if m == "focus" and a["skill_t"] > 0: v *= FOCUS_MOVE
             ox, oy = a["x"], a["y"]; nx = ox + math.cos(a["heading"]) * v; ny = oy + math.sin(a["heading"]) * v
             if v != 0:
                 if self._free(nx, ny, a["id"]): a["x"], a["y"] = nx, ny
@@ -142,6 +148,7 @@ class Game:
             a["sieged"] = a["chassis"] == "siege" and a["still"] >= SIEGE_WAIT   # siege: set up after standing still
             if a["sieged"]: reload, bspd = SIEGE_RELOAD, SIEGE_BSPD
             if m == "overdrive" and a["skill_t"] > 0: reload = round(reload * OVERDRIVE)
+            if m == "focus" and a["skill_t"] > 0: bspd = FOCUS_BSPD
             a["bspd_now"] = bspd
             a["turret"] = wrap(a["turret"] + (act[2] - 1) * TROT); a["cooldown"] = max(0, a["cooldown"] - 1)
             if act[3] == 1 and not a["cooldown"] and not (just and m == "stealth"):
