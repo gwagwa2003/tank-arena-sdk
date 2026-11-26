@@ -1,6 +1,6 @@
-"""Example 3: put your model on the ladder from Python.
+"""Example 4: upload a model to the ladder from Python and queue a ranked match.
 
-    TANK_ARENA_USER=my_account TANK_ARENA_PASSWORD=... python examples/03_upload_and_queue.py model.pt gunner:shield
+    TANK_ARENA_USER=my_account TANK_ARENA_PASSWORD=... python examples/04_upload_and_queue.py model.pt gunner:shield
 
 The same works from the command line:  python -m tank_arena upload model.pt  and  python -m tank_arena queue --wait
 """
@@ -21,7 +21,7 @@ except ArenaError as e:
     print("no such account (or wrong password): registering", user)
     c.register(user, pw, tank_name=user)                # fails if the site is full or the name is taken
 
-c.set_loadout(chassis, module or "shield")              # must match the loadout the model was trained with
+c.set_loadout(chassis, module or "shield")              # must match the loadout the model was built for
 res = c.upload(path)
 print(f"upload: {res['status']} - {res['message']}")
 if res["status"] != "通過":

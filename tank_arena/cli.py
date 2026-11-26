@@ -14,7 +14,7 @@ import os
 import random
 import sys
 
-LOADOUT_HELP = "chassis:module, e.g. gunner:shield (chassis: standard heavy scout gunner lancer siege shotgun; module: stealth shield antizone radar xray smoke overdrive)"
+LOADOUT_HELP = "chassis:module, e.g. gunner:shield (chassis: gunner shotgun skirmisher marksman; module: stealth shield radar backstep focus)"
 
 
 def _policy(spec, seed):
@@ -51,7 +51,7 @@ def main(argv=None):
     p.add_argument("a"); p.add_argument("b")
     p.add_argument("--games", type=int, default=1); p.add_argument("--seed", type=int, default=None)
     p.add_argument("--loadout-a", default="gunner:shield", help=LOADOUT_HELP); p.add_argument("--loadout-b", default="gunner:shield")
-    p.add_argument("--map", choices=["fort", "city"]); p.add_argument("--html", help="save the last game as an HTML replay")
+    p.add_argument("--map", choices=["proc", "fort", "city"]); p.add_argument("--html", help="save the last game as an HTML replay")
     p = sub.add_parser("check", help="run the server's checks locally"); p.add_argument("model")
     p.add_argument("--limit", type=float, default=None, help="ms per step (default: the site's limit, or 20)")
     p = sub.add_parser("upload", help="upload a model.pt"); p.add_argument("model"); p.add_argument("--label", default="")

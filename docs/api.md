@@ -17,7 +17,6 @@
 | POST | `/api/password` | `{"old": 舊密碼, "new": 新密碼}` |
 | GET | `/api/me` | 自己的段位、配裝、上場模型、上傳紀錄、最近幾輪排位 |
 | POST | `/api/loadout` | `{"chassis": 機體, "module": 模組, "tank_name": 坦克名}` |
-| POST | `/api/sit-out` | `{"sit_out": true/false}`，休息（不排位、不會被配對）或回到天梯 |
 
 帳號 3–32 個字元（英數字和 `_ . -`），密碼 6–128 個字元。
 
@@ -35,7 +34,7 @@
 
 | 方法 | 路徑 | 內容 |
 |---|---|---|
-| POST | `/api/queue` | 開始排位（一次一場） |
+| POST | `/api/queue` | 開始排位（可選 `{"games": n}`，省略則依伺服器預設場數） |
 | DELETE | `/api/queue` | 取消 |
 
 排位的進度和結果在 `GET /api/me` 的 `rounds`（`status`：排隊中、進行中、完成、取消）。

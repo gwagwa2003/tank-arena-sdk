@@ -70,13 +70,9 @@ class ArenaClient:
         return self._get("/api/config")
 
     def set_loadout(self, chassis, module, tank_name=None):
-        """chassis: standard / heavy / scout / gunner / lancer / siege / shotgun;
-        module: stealth / shield / antizone / radar / xray / smoke / overdrive."""
+        """chassis: gunner / shotgun / skirmisher / marksman;
+        module: stealth / shield / radar / backstep / focus."""
         return self._post("/api/loadout", dict(chassis=chassis, module=module, tank_name=tank_name))
-
-    def sit_out(self, resting=True):
-        """Rest (no ranked games, nobody can be matched against you) or come back."""
-        return self._post("/api/sit-out", dict(sit_out=bool(resting)))
 
     # ───── models ─────
     def upload(self, path, activate=True, label=""):
@@ -96,9 +92,9 @@ class ArenaClient:
     def set_active(self, model_id): return self._post("/api/active", dict(model_id=int(model_id)))
 
     # ───── ranked games ─────
-    def queue(self):
-        """開始排位: queue ranked games (one per call on the default site)."""
-        return self._post("/api/queue")
+    def queue(self, games=None):
+        """開始排位: queue ranked games (optional `games` in server's queue_choices)."""
+        return self._post("/api/queue", {"games": int(games)} if games is not None else {})
 
     def cancel_queue(self): return self._request("DELETE", "/api/queue")
 

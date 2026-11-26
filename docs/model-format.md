@@ -1,57 +1,46 @@
 # 模型格式：model.pt
 
-伺服器只接受 **TorchScript** 模型，不會執行任何你上傳的 Python 程式。用 SDK 匯出最簡單：
+伺服器不限制神經網路內部架構（MLP、CNN、Transformer、LSTM、GRU 或自訂狀態網路皆可），僅驗證匯出的 TorchScript `model.pt` 是否符合統一介面、檔案大小上限與推論延遲（p95）。
+
+伺服器同時相容兩種觀測格式：
+- **`tank-arena-v3`**（最新預設）：118 維觀測，可搭配 `stack` 1–64 幀。
+- **`tank-arena-v1`**（舊版相容）：91 維觀測（自動截取 118 維的前 91 維）。
+
+用 SDK 匯出最簡單：
 
 ```python
 from tank_arena.export import export_model
-export_model(net, "model.pt", stack=4, mean=mean, std=std)          # 非循環網路
-export_model(lstm, "model.pt", recurrent=True, hidden=128, layers=1, mean=mean, std=std)   # LSTM
+
+# 1. 非循環網路（例如 MLP / Transformer，疊 4 幀）
+export_model(net, "model.pt", stack=4, mean=mean, std=std)
+
+# 2. 有狀態 2 參數網路（例如 GRU / 自訂 buffer：forward(x, h) -> (logits, h)）
+export_model(gru, "model.pt", recurrent=True, rnn="gru", hidden=128, layers=1, stack=2, mean=mean, std=std)
+
+# 3. 有狀態 3 參數網路（例如 LSTM / Transformer KV-cache：forward(x, h, c) -> (logits, h, c)）
+export_model(lstm, "model.pt", recurrent=True, rnn="lstm", hidden=128, layers=1, stack=1, mean=mean, std=std)
 ```
 
 ## forward 的規格
 
-伺服器每一步呼叫：
+伺服器每一步呼叫統一的 TorchScript 介面：
 
-```
+```python
 logits, h, c = model(x, h, c)
 ```
 
-| 參數 | 形狀 | 說明 |
-|---|---|---|
-| `x` | `[1, 91 × stack]` | 正規化、疊好的觀測（見 [observation.md](observation.md)） |
-| `h`, `c` | `[layers, 1, hidden]` | LSTM 狀態，每局開始是 0；非循環模型是 `[1, 1, 1]` 的 0，原樣傳回即可 |
-| `logits` | `[1, 13]` | 5 個動作頭的分數，依序 3 + 3 + 3 + 2 + 2（移動、車身、砲塔、開火、技能） |
-
-伺服器對每個動作頭取最大值（`sample: false`），或依 softmax 抽樣（`sample: true`）。
-
-`export_model` 會幫你包好：非循環網路只要寫 `forward(x) -> logits`，LSTM 寫 `forward(x, h, c) -> (logits, h, c)`。
+- `x`：`[1, obs_size × stack]`（`v3` 為 `118 × stack`，最新幀在最前面）
+- `h`, `c`：`[layers, 1, hidden]`（`recurrent=false` 時為 `[1, 1, 1]`；若原本為 `forward(x, h)`，匯出包裝會自動原樣傳回 `c`）
+- `logits`：`[1, 13]`，依序 3 + 3 + 3 + 2 + 2
 
 ## config.json
 
-匯出時一起打包在 model.pt 裡：
-
 | 欄位 | 說明 |
 |---|---|
-| `format` | 固定是 `"tank-arena-v1"` |
-| `stack` | 疊幾幀，1–16；LSTM 必須是 1 |
-| `recurrent` | 是不是 LSTM |
-| `hidden`, `layers` | LSTM 的狀態大小（1–2048）和層數（1–4）；非循環模型填 1 |
-| `sample` | 動作要不要抽樣 |
-| `mean`, `std` | 各 91 個數，正規化用；`std` 必須大於 0 |
-
-## 上傳檢查
-
-上傳後伺服器馬上檢查，沒通過的檔案不會保留（原因只顯示一次）：
-
-1. 檔案不超過 **10 MB**（目前的上限看 `GET /api/config` 的 `max_model_mb`），是 TorchScript（zip 格式），`config.json` 符合上面的規格。
-2. `forward` 回傳 `(logits, h, c)`，`logits` 形狀 `(1, 13)` 且是有限數字。
-3. **推論速度**：在伺服器上以單執行緒量 400 步，p95 不能超過上限（目前 20 ms，以 `GET /api/config` 的 `speed_limit_ms` 為準）。
-   伺服器的 CPU 可能比你的電腦慢不少，本機量的時間請留餘裕。
-4. 用你的配裝跟規則 bot 試打一局，不能有任何一步出錯。
-
-本機先跑一次：`python -m tank_arena check model.pt`（會向網站查詢目前的速度上限）。
-
-## 配裝要一致
-
-觀測裡的數字（例如射線長度的縮放、裝填比例、技能冷卻）跟機體和模組有關。
-在網站「我的」頁選的配裝，要跟你訓練時用的一樣，模型才會發揮正常。
+| `format` | `"tank-arena-v3"`（118 維）或 `"tank-arena-v1"`（91 維） |
+| `stack` | 1–64 幀（`v3` 與 `v1` 皆可） |
+| `recurrent` | 是否攜帶狀態張量 `(h, c)`（`true` / `false`） |
+| `rnn` / `arch` | 選填，架構名稱標籤（例如 `"lstm"`、`"gru"`、`"transformer"` 等） |
+| `hidden`, `layers` | 狀態張量維度：`hidden` 1–4096、`layers` 1–128（且 `layers × hidden ≤ 131072`） |
+| `sample` | 是否依 softmax 抽樣 |
+| `mean`, `std` | 各 `obs_size` 個有限數字，`std > 0` |

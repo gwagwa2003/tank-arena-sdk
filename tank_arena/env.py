@@ -6,7 +6,7 @@
         obs, reward, terminated, truncated, info = env.step(my_action(obs))
         if terminated or truncated: break
 
-obs is the 91-number observation (not normalised, not stacked: agent.FrameStack does what the server does).
+obs is the 118-number v3_final observation (not normalised, not stacked: agent.FrameStack does what the server does).
 The reward is a simple default you can replace (reward_fn): damage dealt and taken, plus +-10 for winning / losing.
 """
 import random

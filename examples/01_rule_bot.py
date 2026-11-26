@@ -1,7 +1,7 @@
-"""Example 1: write a rule bot, play it against the built-in ChaserBot, and watch the game.
+"""Example 1: write a basic rule bot, run a local match against ChaserBot, and view the replay.
 
-Rule bots read the full game state, so they are the quickest way to learn how the game works. Only models can play on
-the ladder, though: a good rule bot is most useful as a teacher (example 2) or as a sparring partner.
+Rule bots read the full game state and are only for local play and testing. Only exported TorchScript models
+(model.pt) can play on the ladder.
 
     python examples/01_rule_bot.py          # then open replay.html in a browser
 """
@@ -10,7 +10,7 @@ import math
 from tank_arena import ChaserBot, play
 from tank_arena.bots import FWD, KEEP, LEFT, RIGHT, STOP, turn_toward
 from tank_arena.geometry import visible_enemies, wrap
-from tank_arena.rules import CHASSIS, TROT
+from tank_arena.rules import CHASSIS, TROT, TURRET_ROT_MULT
 from tank_arena.viewer import replay_html
 
 
@@ -31,7 +31,8 @@ class MyBot:
             return [move, body, RIGHT, 0, 0]            # sweep the turret while looking around
         e = seen[0]
         want = math.atan2(e["y"] - me["y"], e["x"] - me["x"])
-        turret = turn_toward(me["turret"], want, TROT)
+        trot = TROT * TURRET_ROT_MULT.get(me["chassis"], 1.0)
+        turret = turn_toward(me["turret"], want, trot)
         fire = int(abs(wrap(want - me["turret"])) < 0.1 and me["cooldown"] == 0)
         return [move, body, turret, fire, 0]
 

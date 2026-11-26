@@ -6,8 +6,8 @@
 這個 SDK 讓你在自己的電腦上：
 
 - 跑**跟伺服器完全相同**的遊戲（同樣的規則、物理、地圖）；
-- 拿到伺服器餵給模型的**同一份 91 維觀測**，訓練出來的模型上線後表現一致；
-- 用現成的規則 bot 當對手或老師，幾分鐘就訓練出第一個模型；
+- **拿到伺服器餵給模型的同一份 118 維觀測**（同時相容舊版 91 維模型），訓練出來的模型上線後表現一致；
+- 內建幾個基礎 bot，方便在本機測試、對打與錄製重播；
 - 匯出成網站接受的 `model.pt`，先在本機跑一遍伺服器的檢查，再上傳、排位。
 
 ## 安裝
@@ -26,8 +26,8 @@ pip install -e ".[torch]"        # 只想跑遊戲、不訓練模型的話：pip
 # 1. 看看遊戲：兩個內建 bot 對打，存成重播，用瀏覽器打開 replay.html
 python -m tank_arena play chaser turret --games 5 --html replay.html
 
-# 2. 訓練第一個模型（模仿 ChaserBot，CPU 幾分鐘）
-python examples/02_behavior_cloning.py --loadout gunner:shield
+# 2. 匯出一個最簡模型範例（確認模型格式與推論介面）
+python examples/02_minimal_mlp.py
 
 # 3. 本機跑一遍伺服器的檢查
 python -m tank_arena check model.pt
@@ -42,11 +42,12 @@ python -m tank_arena --user 你的帳號 queue --wait        # 打的時候可�
 
 ## 遊戲在玩什麼
 
-- 800 × 800 的場地，兩張地圖（十字堡壘、城區巷戰），最多 60 秒（1,200 步，每秒 20 步）。
+- 800 × 800 的點對稱隨機戰場（含可破壞掩體、草叢與能量核心），最多 60 秒（1,200 步，每秒 20 步）。
+- 慣性移動、方向裝甲（前甲 0.8×／側甲 1.0×／後甲 1.35×）與槍管熱量系統。
 - 每一步你的模型輸出 5 個動作：移動、車身轉向、砲塔轉向、開火、技能。
-- 選一種**機體**（標準、重裝、輕裝、速射、長砲、攻城、散彈）和一個**模組**（護盾、隱身、透視、煙霧、過載、抗毒、雷達）。
+- 選一種**機體**（速射、散彈、遊擊、狙擊）和一個**模組**（隱身、護盾、雷達、側閃、專注）。
 - 毒圈會縮小，圈外持續扣血。活下來的贏；都陣亡撐比較久的贏；時間到剩血多的贏。
-- 模型**看不到完整的場面**：只看得到視線內、沒被牆或煙霧擋住的敵人，和身邊的子彈。
+- 模型**看不到完整的場面**：只看得到視野錐內、沒被牆／草叢／隱身遮蔽的敵人，以及聲波與身邊子彈；需匯出為 TorchScript `model.pt` 上傳（詳見 [docs/model-format.md](docs/model-format.md)）。
 
 完整規則見 [docs/rules.md](docs/rules.md)。
 
@@ -55,9 +56,9 @@ python -m tank_arena --user 你的帳號 queue --wait        # 打的時候可�
 | 模組 | 用途 |
 |---|---|
 | `tank_arena.engine` | 遊戲本體：`play()` 打一整局，`Game` 一步一步打（訓練用） |
-| `tank_arena.observation` | `observation(state)`：模型每一步看到的 91 個數字（[說明](docs/observation.md)） |
+| `tank_arena.observation` | `observation(state)`：模型每一步看到的 118 個數字（[說明](docs/observation.md)） |
 | `tank_arena.env` | `TankEnv`：reset / step 介面的訓練環境（跟 Gymnasium 相同的形式），可自訂獎勵 |
-| `tank_arena.bots` | 規則 bot：`IdleBot`（不動）、`TurretBot`（定點射擊）、`ChaserBot`（完整的簡單戰術） |
+| `tank_arena.bots` | 基礎測試 bot：`IdleBot`（不動）、`TurretBot`（定點射擊）、`ChaserBot`（基礎移動射擊） |
 | `tank_arena.agent` | `ModelPolicy`：照伺服器的方式執行 model.pt；`FrameStack`：伺服器的疊幀方式 |
 | `tank_arena.export` | `export_model()`：把 PyTorch 網路匯出成網站接受的 model.pt（[格式](docs/model-format.md)） |
 | `tank_arena.check` | `check_model()`：伺服器的上傳檢查（格式、輸出、速度、試打一局） |
@@ -68,11 +69,10 @@ python -m tank_arena --user 你的帳號 queue --wait        # 打的時候可�
 
 | 檔案 | 內容 |
 |---|---|
-| [examples/01_rule_bot.py](examples/01_rule_bot.py) | 自己寫一個規則 bot，跟 ChaserBot 對打、看重播，熟悉遊戲 |
-| [examples/02_behavior_cloning.py](examples/02_behavior_cloning.py) | 模仿學習＋DAgger：從規則 bot 學出第一個模型，匯出、檢查、評估 |
-| [examples/03_upload_and_queue.py](examples/03_upload_and_queue.py) | 用 Python 登入、設定配裝、上傳、排位、等結果 |
-
-想再變強：用 `TankEnv` 做強化學習（PPO 等）微調、拿自己的舊模型當對手自我對戰、改用 LSTM（`export_model(..., recurrent=True)`）。
+| [examples/01_rule_bot.py](examples/01_rule_bot.py) | 寫一個基礎規則 bot 與 `ChaserBot` 對打並輸出重播 HTML |
+| [examples/02_minimal_mlp.py](examples/02_minimal_mlp.py) | 最簡前饋網路（MLP）匯出、通過安檢與本機試打範例 |
+| [examples/03_minimal_recurrent.py](examples/03_minimal_recurrent.py) | 最簡循環網路（GRU / LSTM）匯出、通過安檢與本機試打範例 |
+| [examples/04_upload_and_queue.py](examples/04_upload_and_queue.py) | 用 Python 登入、設定配裝、上傳、排位、等結果 |
 
 ## 給模型的小提醒
 
